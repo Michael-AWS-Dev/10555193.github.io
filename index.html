@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+    	<title>AWS Demo</title>
+	</head>
+	<body>
+		<h2>S3 Upload Manager</h2>
+		<h3 id="folder"></h3>
+		<br>
+		<input type="file" id="file-chooser" />
+    	<button id="upload-button" onclick="uploadObject()">Upload to S3</button>
+		<br>
+		<ul id="show-table"></ul>
+
+		<!-- JavaScript -->
+		<script src="https://sdk.amazonaws.com/js/aws-sdk-2.883.0.min.js"></script>
+		<script>
+			var url_string = window.location.href;
+			var url = new URL(url_string);
+			var folder = url.searchParams.get("folder");
+			console.log(folder);
+			document.getElementById('folder').innerText = "Bucket Folder: /"+folder;
+
+			// Initialize the Amazon Cognito credentials provider
+			AWS.config.region = 'us-east-1'; // Region
+			AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+			    IdentityPoolId: 'us-east-1:2987f9f2-16cc-46c1-af75-50835f57c623',
+			});
+		    var s3 = new AWS.S3({
+				apiVersion: '2006-03-01',
+				params: {
+					Bucket: 'maxinlove770',
+					Prefix: folder
+				}
+			});
+
+			function deleteObject(key) {
+				var params = {
+					Bucket: "maxinlove770", 
+					//Key: folder+"/"+key
+					Key: key
+				};
+				s3.deleteObject(params, function(err, data) {
+					if (err) { // an error occurred
+						console.log(err, err.stack);
+					} 
+					else { // successful response
+						console.log(data);
+						listObject();
+					}          
+				});
+			}
+
+			function uploadObject() {
+				var fileChooser = document.getElementById('file-chooser');
+				var file = fileChooser.files[0]
+			    if (!file) {
+			        return
+			    }
+			    var show_table = document.getElementById("show-table"); 
+			    show_table.innerText = "";
+			    var params = {
+			    	Bucket: "maxinlove770",
+			        Key: folder + '/' + file.name,
+			        ContentType: file.type,
+			        Body: file,
+			        //ACL: 'public-read'
+			    }
+			    s3.putObject(params, function(err, data) {
+			        if (err) {
+			            alert('ERROR: ' + err);
+			            return;
+			         }
+			         fileChooser.value = "";
+			         listObject();
+			    })
+			}
+
+			function listObject() {
+			    if (folder) {
+			    	var show_table = document.getElementById("show-table"); 
+			    	show_table.innerText = "";
+					s3.listObjects(function (err, data) {
+						if (err) {
+							return alert('There was an error: ' + err.message);
+						} else {
+						console.log(data);
+		
+						var count = 0;
+						var contents = data.Contents;
+						contents.forEach(function (content) {
+							// Do not show first element (= root folder)
+							if (count == 0) {
+								count = count+1;
+							}
+							else {
+								var el = document.createElement("li");
+								el.textContent = content.Key;
+								el.innerText = content.Key;
+
+								var deleteButton = document.createElement("button");
+								deleteButton.innerText = "Delete File";
+								deleteButton.onclick = function () {
+					                deleteObject(content.Key);
+					            };
+								el.appendChild(deleteButton);
+
+								show_table.appendChild(el);
+							}
+							});
+						}
+					});
+			    }
+			}
+			listObject();
+			
+			
+
+		</script>
+	</body>
+</html>
